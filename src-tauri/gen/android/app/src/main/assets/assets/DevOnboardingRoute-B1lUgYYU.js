@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/OnboardingPage-R1nkHkaC.js","assets/index-BquCKdg_.js","assets/index-hP9hu8pf.css","assets/MetabolismProfileFields-2vUfYkew.js","assets/NumberInput-BCavz9lR.js"])))=>i.map(i=>d[i]);
+import{a0 as t,j as e,aa as r,_ as o}from"./index-BquCKdg_.js";r.lazy(()=>o(()=>import("./OnboardingPage-R1nkHkaC.js"),__vite__mapDeps([0,1,2,3,4])).then(a=>({default:a.OnboardingPage})));function n(){return t.jsx(e,{to:"/",replace:!0})}export{n as DevOnboardingRoute};

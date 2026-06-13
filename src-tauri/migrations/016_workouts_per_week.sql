@@ -1,0 +1,1 @@
+ALTER TABLE settings ADD COLUMN workouts_per_week INTEGER NOT NULL DEFAULT 3;

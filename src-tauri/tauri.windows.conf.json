@@ -1,0 +1,18 @@
+{
+  "bundle": {
+    "shortDescription": "Personal health and weight tracking",
+    "longDescription": "Health Tracker helps you log daily weight, calories, walking, workouts, and habits. Your data is stored locally on your PC.",
+    "publisher": "Health Tracker",
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false,
+        "startMenuFolder": "Health Tracker"
+      }
+    }
+  }
+}
