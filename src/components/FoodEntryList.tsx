@@ -80,9 +80,12 @@ export function FoodEntryList({
     trimmedQuery.length > 0 && filtered.length === 0 && foods.length > 0;
   const canShowEstimateAction =
     showNoMatchingFoods || trimmedQuery.length >= 10;
-  const hasApiKey = Boolean(settings.mealEstimateApiKey?.trim());
+  const hasApiKey = Boolean(settings.aiApiKey?.trim());
   const canEstimate =
-    settings.mealEstimateEnabled && hasApiKey && trimmedQuery.length > 0;
+    settings.aiEnabled &&
+    settings.mealEstimateEnabled &&
+    hasApiKey &&
+    trimmedQuery.length > 0;
 
   const sortedEntries = useMemo(
     () => [...entries].sort((a, b) => b.calories - a.calories),
@@ -202,7 +205,7 @@ export function FoodEntryList({
 
   const runEstimate = async () => {
     if (!trimmedQuery) return;
-    if (!settings.mealEstimateEnabled) {
+    if (!settings.aiEnabled || !settings.mealEstimateEnabled) {
       setError("Enable AI meal estimates in Settings");
       return;
     }
@@ -333,11 +336,11 @@ export function FoodEntryList({
                           </div>
                         )}
                       </button>
-                    ) : settings.mealEstimateEnabled && !hasApiKey ? (
+                    ) : settings.aiEnabled && settings.mealEstimateEnabled && !hasApiKey ? (
                       <div className={dropdownMenuEmptyClass}>
                         Add Gemini API key in Settings
                       </div>
-                    ) : !settings.mealEstimateEnabled ? (
+                    ) : !settings.aiEnabled || !settings.mealEstimateEnabled ? (
                       <div className={dropdownMenuEmptyClass}>
                         Enable AI meal estimates in Settings
                       </div>

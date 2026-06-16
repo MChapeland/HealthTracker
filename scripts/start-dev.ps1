@@ -25,6 +25,30 @@ try {
     # Get-NetTCPConnection may be unavailable; tauri dev will report port errors
 }
 
+$targetDir = Join-Path $projectRoot "src-tauri\target"
+$staleBuild = $false
+if (Test-Path $targetDir) {
+    try {
+        $staleBuild = Select-String -Path (Join-Path $targetDir "debug\build\*\out\*") `
+            -Pattern "Work\\Tracker" -SimpleMatch -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+    } catch {
+        $staleBuild = $false
+    }
+}
+if ($staleBuild) {
+    Write-Host "Stale Rust build cache detected (old project path Work\Tracker)." -ForegroundColor Yellow
+    Write-Host "Cleaning src-tauri\target before dev start..." -ForegroundColor Yellow
+    Push-Location (Join-Path $projectRoot "src-tauri")
+    try {
+        cargo clean | Out-Null
+    } finally {
+        Pop-Location
+    }
+    Write-Host "Clean complete. First launch will recompile (1-3 minutes)." -ForegroundColor DarkGray
+    Write-Host ""
+}
+
 Write-Host "Starting dev mode (Vite on http://localhost:1420)..." -ForegroundColor Cyan
 Write-Host "Keep this window open while the app runs." -ForegroundColor DarkGray
 Write-Host ""

@@ -19,6 +19,17 @@ pub fn init_db(app: &tauri::App) -> SqlResult<Connection> {
     Ok(conn)
 }
 
+/// Open (creating if needed) and migrate the database at an explicit path.
+/// Used by the cloud web server, where the path comes from `DATABASE_PATH`.
+pub fn init_db_at(path: &std::path::Path) -> SqlResult<Connection> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+    let conn = Connection::open(path)?;
+    run_migrations(&conn)?;
+    Ok(conn)
+}
+
 fn settings_has_column(conn: &Connection, name: &str) -> SqlResult<bool> {
     Ok(conn
         .prepare("PRAGMA table_info(settings)")?
@@ -318,6 +329,21 @@ fn run_migrations(conn: &Connection) -> SqlResult<()> {
     if version < 31 {
         conn.execute_batch(include_str!("../migrations/031_teeth_brushing.sql"))?;
         conn.execute("INSERT INTO schema_version (version) VALUES (31)", [])?;
+    }
+
+    if version < 32 {
+        conn.execute_batch(include_str!("../migrations/032_rebalance_score_weights.sql"))?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (32)", [])?;
+    }
+
+    if version < 33 {
+        conn.execute_batch(include_str!("../migrations/033_ai_settings.sql"))?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (33)", [])?;
+    }
+
+    if version < 34 {
+        conn.execute_batch(include_str!("../migrations/034_ai_api_logs.sql"))?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (34)", [])?;
     }
 
     Ok(())

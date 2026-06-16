@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { isAndroid } from "../lib/platform";
+import { type ReactNode } from "react";
+import { useMobileViewport } from "../hooks/useMobileViewport";
 
 /** Shared max width for every main app page (desktop). */
 export const PAGE_LAYOUT_WIDTH = "max-w-4xl";
@@ -15,23 +15,9 @@ export function PageLayout({
   children,
   contentClassName = "space-y-6",
 }: Props) {
-  const [android, setAndroid] = useState(() => {
-    try {
-      return isAndroid();
-    } catch {
-      return false;
-    }
-  });
+  const isMobile = useMobileViewport();
 
-  useEffect(() => {
-    try {
-      setAndroid(isAndroid());
-    } catch {
-      setAndroid(false);
-    }
-  }, []);
-
-  const widthClass = android ? "max-w-none px-4" : `px-6 ${PAGE_LAYOUT_WIDTH}`;
+  const widthClass = isMobile ? "max-w-none px-4" : `px-6 ${PAGE_LAYOUT_WIDTH}`;
 
   return (
     <div className={`mx-auto w-full py-6 ${widthClass}`}>

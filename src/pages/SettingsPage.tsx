@@ -53,8 +53,8 @@ export function SettingsPage() {
 
   useEffect(() => {
     if (!settings) return;
-    setApiKeyDraft(settings.mealEstimateApiKey ?? "");
-  }, [settings?.mealEstimateApiKey]);
+    setApiKeyDraft(settings.aiApiKey ?? "");
+  }, [settings?.aiApiKey]);
 
   const update = useCallback(
     (patch: Partial<Settings>) => {
@@ -581,14 +581,14 @@ export function SettingsPage() {
       <section className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <SectionHeader kind="aiEstimation" className="text-sm font-medium text-slate-400">
-            AI estimation
+            AI features
           </SectionHeader>
           <label className="group relative inline-flex shrink-0 cursor-pointer select-none">
             <input
               type="checkbox"
-              checked={s.mealEstimateEnabled}
-              onChange={(e) => update({ mealEstimateEnabled: e.target.checked })}
-              aria-label="Enable AI estimation"
+              checked={s.aiEnabled}
+              onChange={(e) => update({ aiEnabled: e.target.checked })}
+              aria-label="Enable AI features"
               className="peer sr-only"
             />
             <span
@@ -600,26 +600,20 @@ export function SettingsPage() {
           </label>
         </div>
 
-        <div
-          className={
-            s.mealEstimateEnabled
-              ? undefined
-              : "pointer-events-none opacity-50"
-          }
-        >
+        <div className={s.aiEnabled ? undefined : "pointer-events-none opacity-50"}>
           <p className="mb-3 text-xs text-slate-500">
-            Describe a meal in plain text and let Gemini estimate calories and
-            macros. Get a free API key from{" "}
+            Shared Gemini API key for meal estimates and progress feedback. Get a
+            free key from{" "}
             <a
               href="https://aistudio.google.com/apikey"
               target="_blank"
               rel="noreferrer"
               className="text-accent-soft hover:text-accent"
-              tabIndex={s.mealEstimateEnabled ? undefined : -1}
+              tabIndex={s.aiEnabled ? undefined : -1}
             >
               Google AI Studio
             </a>
-            . Your API key stays on this device in the local database.
+            . Your key stays on this device in the local database.
           </p>
 
           <div className="space-y-3">
@@ -632,24 +626,24 @@ export function SettingsPage() {
                   type={apiKeyVisible ? "text" : "password"}
                   className="w-full rounded-lg border border-slate-700 bg-slate-800 py-2 pl-3 pr-10 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                   value={apiKeyDraft}
-                  disabled={!s.mealEstimateEnabled}
+                  disabled={!s.aiEnabled}
                   placeholder="Paste your API key"
                   autoComplete="off"
                   onChange={(e) => setApiKeyDraft(e.target.value)}
                   onBlur={() => {
                     const trimmed = apiKeyDraft.trim();
                     if (!trimmed) return;
-                    if (trimmed === (settingsRef.current?.mealEstimateApiKey ?? "")) {
+                    if (trimmed === (settingsRef.current?.aiApiKey ?? "")) {
                       return;
                     }
-                    update({ mealEstimateApiKey: trimmed });
+                    update({ aiApiKey: trimmed });
                   }}
                 />
                 <button
                   type="button"
                   className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer rounded p-1 text-slate-400 transition-colors hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
                   aria-label={apiKeyVisible ? "Hide API key" : "Show API key"}
-                  disabled={!s.mealEstimateEnabled}
+                  disabled={!s.aiEnabled}
                   onClick={() => setApiKeyVisible((visible) => !visible)}
                 >
                   <i
@@ -664,18 +658,86 @@ export function SettingsPage() {
                 Gemini model
               </label>
               <GeminiModelSelect
-                value={normalizeGeminiModel(s.mealEstimateModel)}
-                disabled={!s.mealEstimateEnabled}
-                onChange={(model) => update({ mealEstimateModel: model })}
+                value={normalizeGeminiModel(s.aiModel)}
+                disabled={!s.aiEnabled}
+                onChange={(model) => update({ aiModel: model })}
               />
-              <p className="mt-1 text-xs text-slate-500">
-                Free models work with a Google AI Studio key at no charge, subject
-                to rate limits. Paid models require billing enabled and are charged
-                per use.
-              </p>
             </div>
 
-            <MealEstimateApiLogPanel enabled={s.mealEstimateEnabled} />
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2">
+              <span className="text-sm text-slate-300">Meal estimation</span>
+              <label className="group relative inline-flex shrink-0 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={s.mealEstimateEnabled}
+                  onChange={(e) =>
+                    update({ mealEstimateEnabled: e.target.checked })
+                  }
+                  disabled={!s.aiEnabled}
+                  aria-label="Enable meal estimation"
+                  className="peer sr-only"
+                />
+                <span
+                  aria-hidden
+                  className="flex h-6 w-11 shrink-0 items-center rounded-full border border-slate-600 bg-slate-800 p-1 shadow-inner transition-colors hover:border-slate-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent-400"
+                >
+                  <span className="h-3.5 w-3.5 shrink-0 translate-x-0 rounded-full bg-slate-500 shadow-sm transition-[transform,background-color] duration-300 ease-in-out group-has-[:checked]:translate-x-5 group-has-[:checked]:bg-slate-400" />
+                </span>
+              </label>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2">
+              <span className="text-sm text-slate-300">Progress feedback</span>
+              <label className="group relative inline-flex shrink-0 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={s.aiFeedbackEnabled}
+                  onChange={(e) =>
+                    update({ aiFeedbackEnabled: e.target.checked })
+                  }
+                  disabled={!s.aiEnabled}
+                  aria-label="Enable AI progress feedback"
+                  className="peer sr-only"
+                />
+                <span
+                  aria-hidden
+                  className="flex h-6 w-11 shrink-0 items-center rounded-full border border-slate-600 bg-slate-800 p-1 shadow-inner transition-colors hover:border-slate-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent-400"
+                >
+                  <span className="h-3.5 w-3.5 shrink-0 translate-x-0 rounded-full bg-slate-500 shadow-sm transition-[transform,background-color] duration-300 ease-in-out group-has-[:checked]:translate-x-5 group-has-[:checked]:bg-slate-400" />
+                </span>
+              </label>
+            </div>
+
+            {import.meta.env.DEV && (
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-slate-700 bg-slate-950/40 px-3 py-2">
+                <div>
+                  <span className="text-sm text-slate-300">Verbose AI logging</span>
+                  <p className="text-xs text-slate-500">
+                    Dev only — stores full prompts and responses in API logs.
+                  </p>
+                </div>
+                <label className="group relative inline-flex shrink-0 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={s.aiVerboseLogging}
+                    onChange={(e) =>
+                      update({ aiVerboseLogging: e.target.checked })
+                    }
+                    disabled={!s.aiEnabled}
+                    aria-label="Enable verbose AI logging"
+                    className="peer sr-only"
+                  />
+                  <span
+                    aria-hidden
+                    className="flex h-6 w-11 shrink-0 items-center rounded-full border border-slate-600 bg-slate-800 p-1 shadow-inner transition-colors hover:border-slate-500"
+                  >
+                    <span className="h-3.5 w-3.5 shrink-0 translate-x-0 rounded-full bg-slate-500 shadow-sm transition-[transform,background-color] duration-300 ease-in-out group-has-[:checked]:translate-x-5 group-has-[:checked]:bg-slate-400" />
+                  </span>
+                </label>
+              </div>
+            )}
+
+            <MealEstimateApiLogPanel enabled={s.aiEnabled && s.mealEstimateEnabled} />
           </div>
         </div>
       </section>

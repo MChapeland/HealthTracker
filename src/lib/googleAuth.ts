@@ -10,13 +10,19 @@ import {
   getGoogleClientSecret,
   googleSignInScopes,
 } from "./googleAuthConfig";
-import { isAndroid } from "./platform";
+import { isTauri } from "./platform";
 
 export interface GoogleTokens {
   accessToken: string;
   refreshToken: string | null;
   expiresAt: number | null;
 }
+
+/** Same-origin by default; configurable for split dev (Vite + server). */
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(
+  /\/$/,
+  ""
+);
 
 function signInOptions() {
   const clientId = getGoogleClientId();
@@ -25,16 +31,25 @@ function signInOptions() {
     clientId,
     scopes: googleSignInScopes(),
   };
-  if (clientSecret && !isAndroid()) {
+  if (clientSecret) {
     options.clientSecret = clientSecret;
-  }
-  if (isAndroid()) {
-    options.flowType = "native";
   }
   return options;
 }
 
+/**
+ * Starts Google sign-in.
+ * - Desktop (Tauri): native OAuth via the plugin, storing the refresh token.
+ * - Web: full-page redirect to the backend, which performs the OAuth code
+ *   exchange server-side (client secret + refresh token never reach the browser).
+ */
 export async function googleSignIn(): Promise<string> {
+  if (!isTauri()) {
+    window.location.assign(`${API_BASE_URL}/api/auth/google/start`);
+    // Navigation unloads the page; this never resolves.
+    return new Promise<string>(() => {});
+  }
+
   const response = await signIn(signInOptions());
   const email =
     (response.idToken ? emailFromIdToken(response.idToken) : null) ??
@@ -63,6 +78,26 @@ async function fetchGoogleEmail(accessToken: string): Promise<string | null> {
 }
 
 export async function googleRefreshAccessToken(): Promise<GoogleTokens> {
+  if (!isTauri()) {
+    // The browser cannot refresh tokens (no client secret); the server mints a
+    // short-lived access token from its stored refresh token.
+    const res = await fetch(`${API_BASE_URL}/api/auth/google/access_token`, {
+      credentials: "include",
+    });
+    if (!res.ok) {
+      throw new Error("Not signed in.");
+    }
+    const data = (await res.json()) as {
+      accessToken: string;
+      expiresAt: number | null;
+    };
+    return {
+      accessToken: data.accessToken,
+      refreshToken: null,
+      expiresAt: data.expiresAt ?? null,
+    };
+  }
+
   const stored = await api.getGoogleRefreshToken();
   if (!stored) {
     throw new Error("Not signed in.");
@@ -73,7 +108,7 @@ export async function googleRefreshAccessToken(): Promise<GoogleTokens> {
     refreshToken: stored,
     clientId,
   };
-  if (clientSecret && !isAndroid()) {
+  if (clientSecret) {
     options.clientSecret = clientSecret;
   }
   const response = await refreshToken(options);
@@ -85,6 +120,11 @@ export async function googleRefreshAccessToken(): Promise<GoogleTokens> {
 }
 
 export async function googleSignOut(): Promise<void> {
+  if (!isTauri()) {
+    await api.clearGoogleAuth();
+    return;
+  }
+
   try {
     const tokens = await googleRefreshAccessToken().catch(() => null);
     await signOut(tokens ? { accessToken: tokens.accessToken } : undefined);

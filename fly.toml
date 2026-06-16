@@ -1,0 +1,33 @@
+# Fly.io deployment for the Health Tracker cloud web version.
+# Rename `app` to your own unique name before `fly launch`/`fly deploy`.
+app = "health-tracker"
+primary_region = "ams"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  STATIC_DIR = "/app/dist"
+  DATABASE_PATH = "/data/tracker.db"
+  SECURE_COOKIES = "true"
+
+# Secrets (set with `fly secrets set ...`, never commit these):
+#   APP_PASSWORD          - single-user login password (required)
+#   SESSION_SECRET        - >=64 byte random string for signing session cookies
+#   GOOGLE_CLIENT_ID      - web OAuth client id (optional, for Drive sync)
+#   GOOGLE_CLIENT_SECRET  - web OAuth client secret (optional, for Drive sync)
+#   WEB_BASE_URL          - public https URL, e.g. https://health-tracker.fly.dev
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+
+# Persistent SQLite database lives on a mounted volume.
+# Create it once with: fly volumes create health_tracker_data --size 1
+[[mounts]]
+  source = "health_tracker_data"
+  destination = "/data"

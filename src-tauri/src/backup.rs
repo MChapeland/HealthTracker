@@ -375,6 +375,7 @@ pub fn export_sync_snapshot(db: &Connection, strip_api_key: bool) -> Result<Sync
     let mut data = export_backup_data(db)?;
     if strip_api_key {
         data.settings.meal_estimate_api_key = None;
+        data.settings.ai_api_key = None;
     }
     Ok(SyncSnapshot {
         schema_version: SYNC_SCHEMA_VERSION,
@@ -405,7 +406,7 @@ fn clear_user_data(tx: &Transaction<'_>) -> Result<(), String> {
 pub fn import_backup_data(db: &mut Connection, backup: BackupData) -> Result<(), String> {
     let local_api_key: Option<String> = db
         .query_row(
-            "SELECT meal_estimate_api_key FROM settings WHERE id = 1",
+            "SELECT COALESCE(ai_api_key, meal_estimate_api_key) FROM settings WHERE id = 1",
             [],
             |row| row.get(0),
         )
@@ -618,7 +619,8 @@ pub fn import_backup_data(db: &mut Connection, backup: BackupData) -> Result<(),
     }
 
     let mut settings = backup.settings;
-    settings.meal_estimate_api_key = local_api_key;
+    settings.meal_estimate_api_key = local_api_key.clone();
+    settings.ai_api_key = local_api_key;
     settings.workout_days_per_week = settings.workout_days_per_week.clamp(1, 7);
 
     tx.execute(
@@ -637,7 +639,9 @@ pub fn import_backup_data(db: &mut Connection, backup: BackupData) -> Result<(),
             meal_estimate_enabled = ?35, meal_estimate_api_key = ?36, meal_estimate_model = ?37,
             daily_water_goal_ml = ?38,
             daily_teeth_brushings_goal = ?39, score_weight_teeth = ?40,
-            google_account_email = ?41, google_refresh_token = ?42, device_id = ?43
+            ai_enabled = ?41, ai_api_key = ?42, ai_model = ?43,
+            ai_feedback_enabled = ?44, ai_verbose_logging = ?45,
+            google_account_email = ?46, google_refresh_token = ?47, device_id = ?48
          WHERE id = 1",
         params![
             settings.starting_weight,
@@ -680,6 +684,11 @@ pub fn import_backup_data(db: &mut Connection, backup: BackupData) -> Result<(),
             settings.daily_water_goal_ml,
             settings.daily_teeth_brushings_goal,
             settings.score_weight_teeth,
+            if settings.ai_enabled { 1 } else { 0 },
+            settings.ai_api_key,
+            settings.ai_model,
+            if settings.ai_feedback_enabled { 1 } else { 0 },
+            if settings.ai_verbose_logging { 1 } else { 0 },
             local_email,
             local_refresh,
             device_id,

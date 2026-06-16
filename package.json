@@ -15,11 +15,9 @@
     "check:build": "powershell -ExecutionPolicy Bypass -File ./scripts/ensure-release-build.ps1 -CheckOnly",
     "preview": "vite preview",
     "tauri": "tauri",
-    "android:dev": "powershell -ExecutionPolicy Bypass -File ./scripts/android-dev.ps1",
-    "android:dev:tauri": "powershell -ExecutionPolicy Bypass -Command \". ./scripts/android-env.ps1; tauri android dev\"",
-    "android:build": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk.ps1",
-    "android:build:tauri": "powershell -ExecutionPolicy Bypass -Command \". ./scripts/android-env.ps1; tauri android build --apk\"",
-    "install:windows": "powershell -ExecutionPolicy Bypass -File ./install-windows-shortcuts.ps1"
+    "install:windows": "powershell -ExecutionPolicy Bypass -File ./install-windows-shortcuts.ps1",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@choochmeque/tauri-plugin-google-auth-api": "^0.5.1",
@@ -42,6 +40,7 @@
     "@vitejs/plugin-react": "^4.6.0",
     "tailwindcss": "^4.3.0",
     "typescript": "~5.8.3",
-    "vite": "^7.0.4"
+    "vite": "^7.0.4",
+    "vitest": "^3.2.4"
   }
 }

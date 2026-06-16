@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { isDev } from "../lib/dev";
-import { isAndroid } from "../lib/platform";
+import { useMobileViewport } from "../hooks/useMobileViewport";
 import { MAIN_NAV, PAGE_ICONS } from "../lib/pageNav";
 import { MobileBottomNav } from "./MobileBottomNav";
 
@@ -73,21 +72,6 @@ function MobileLayout() {
 }
 
 export function Layout() {
-  const [android, setAndroid] = useState(() => {
-    try {
-      return isAndroid();
-    } catch {
-      return false;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      setAndroid(isAndroid());
-    } catch {
-      setAndroid(false);
-    }
-  }, []);
-
-  return android ? <MobileLayout /> : <DesktopLayout />;
+  const isMobile = useMobileViewport();
+  return isMobile ? <MobileLayout /> : <DesktopLayout />;
 }

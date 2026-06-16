@@ -87,9 +87,117 @@ export interface Settings {
   scoreWeightFoodKcal: number;
   scoreWeightFoodMacros: number;
   accentColor: AccentColor;
+  /** Master toggle for AI features. */
+  aiEnabled: boolean;
+  /** Shared Gemini API key. */
+  aiApiKey: string | null;
+  /** Shared Gemini model id. */
+  aiModel: string;
+  /** Enable AI meal calorie estimation. */
   mealEstimateEnabled: boolean;
-  mealEstimateApiKey: string | null;
-  mealEstimateModel: string;
+  /** Enable AI progress feedback. */
+  aiFeedbackEnabled: boolean;
+  /** Store full prompts/responses in API logs (debug). */
+  aiVerboseLogging: boolean;
+}
+
+export type AiFeedbackTopic =
+  | "generalOverview"
+  | "consistency"
+  | "weightTrend"
+  | "nutrition"
+  | "activity"
+  | "workouts"
+  | "hydration"
+  | "dentalHabits"
+  | "custom";
+
+export type AiFeedbackConfidence = "high" | "medium" | "low";
+
+export type DataSufficiency = "sufficient" | "insufficient";
+
+export interface SlimDayLog {
+  date: string;
+  weight: number | null;
+  totalCalories: number;
+  steps: number | null;
+  workedOut: boolean;
+  workoutDurationMin: number | null;
+  waterMl: number | null;
+  teethBrushings: number | null;
+}
+
+export interface ProgressFeedbackRequest {
+  topic: AiFeedbackTopic;
+  userNote?: string;
+  analysisPeriodDays: number;
+  generatedAt: string;
+  userContext: {
+    startingWeight: number | null;
+    targetWeight: number | null;
+    targetMonthlyWeightChangeKg: number | null;
+    dailyStepsGoal: number;
+    dailyWaterGoalMl: number;
+    dailyTeethBrushingsGoal: number;
+    workoutDaysPerWeek: number;
+    calorieIdealMin: number;
+    calorieIdealMax: number;
+    journeyStartDate: string | null;
+  };
+  computed: {
+    localStatus: string;
+    localStatusReason: string;
+    confidence: AiFeedbackConfidence;
+    confidenceReason: string;
+    metrics: Record<string, number | string | boolean | null>;
+    warnings: string[];
+  };
+  recentLogs: SlimDayLog[];
+}
+
+export interface ProgressFeedbackResponse {
+  headline: string;
+  status: string;
+  summary: string;
+  likelyExplanation: string;
+  positiveSignals: string[];
+  watchOuts: string[];
+  nextSteps: string[];
+  confidence: AiFeedbackConfidence;
+  confidenceReason: string;
+  debugPayload?: ProgressFeedbackRequest;
+}
+
+export interface ProgressAnalysisResult {
+  sufficiency: DataSufficiency;
+  localStatus: string;
+  localStatusReason: string;
+  confidence: AiFeedbackConfidence;
+  confidenceReason: string;
+  metrics: Record<string, number | string | boolean | null>;
+  warnings: string[];
+  recentLogs: SlimDayLog[];
+  emptyMessage?: string;
+}
+
+export type AiApiLogFeature = "meal_estimate" | "progress_feedback";
+
+export interface AiApiLog {
+  id: number;
+  createdAt: string;
+  feature: AiApiLogFeature;
+  topic: AiFeedbackTopic | null;
+  model: string;
+  status: "success" | "error";
+  errorCode: string | null;
+  durationMs: number;
+  httpStatus: number | null;
+  promptTokens: number | null;
+  outputTokens: number | null;
+  totalTokens: number | null;
+  estimatedCostUsd: number | null;
+  requestPrompt: string | null;
+  responseText: string | null;
 }
 
 export type MealEstimateConfidence = "low" | "medium" | "high";

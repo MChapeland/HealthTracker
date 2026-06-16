@@ -1,23 +1,25 @@
-import { type OsType, type as osType } from "@tauri-apps/plugin-os";
+import { isTauri as tauriIsTauri } from "@tauri-apps/api/core";
 
-let cached: OsType | null = null;
+let cachedTauri: boolean | null = null;
 
-export function getOsType(): OsType {
-  if (cached === null) {
+/**
+ * True when running inside the Tauri desktop shell (vs a plain browser tab).
+ * Used to decide between the Tauri `invoke` backend and the HTTP backend.
+ */
+export function isTauri(): boolean {
+  if (cachedTauri === null) {
     try {
-      cached = osType();
+      cachedTauri = tauriIsTauri();
     } catch {
-      cached = "windows";
+      cachedTauri =
+        typeof window !== "undefined" &&
+        "__TAURI_INTERNALS__" in (window as unknown as Record<string, unknown>);
     }
   }
-  return cached;
+  return cachedTauri;
 }
 
-export function isAndroid(): boolean {
-  return getOsType() === "android";
-}
-
-export function isDesktop(): boolean {
-  const t = getOsType();
-  return t === "windows" || t === "linux" || t === "macos";
+/** True when running as a web page in a normal browser (no Tauri shell). */
+export function isWeb(): boolean {
+  return !isTauri();
 }

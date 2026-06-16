@@ -1,7 +1,0 @@
-{
-  "$schema": "../gen/schemas/desktop-schema.json",
-  "identifier": "android-capability",
-  "description": "Health Tracker on Android",
-  "platforms": ["android"],
-  "permissions": ["core:default", "os:default", "dialog:default", "google-auth:default"]
-}

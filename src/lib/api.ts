@@ -1,35 +1,25 @@
-import { invoke } from "@tauri-apps/api/core";
+import { backend } from "./backend";
+import type { SettingsRow } from "./backend";
 import { parseWeightChangeRateUnit } from "./metabolism";
 import { normalizeGeminiModel } from "./geminiModels";
-import {
-  DEFAULT_SCORE_WEIGHTS,
-} from "./scoreWeights";
+import { DEFAULT_SCORE_WEIGHTS } from "./scoreWeights";
 import type {
   BackupData,
   DayInput,
   DayRecord,
   Food,
-  FoodEntry,
   FoodUnit,
   MealEstimate,
-  MealEstimateApiLog,
-  MetricsPoint,
-  PeriodSummary,
+  ProgressFeedbackRequest,
   Settings,
   SyncPullResult,
   SyncSnapshot,
   SyncState,
   WorkoutEntry,
   WorkoutTemplate,
-  Routine,
-  ExerciseProgress,
   ExerciseLogInput,
-  RoutineProgress,
   RoutineLogExerciseInput,
 } from "../types";
-
-/** Backend row includes unused legacy weight-trend weight (always 0). */
-type SettingsRow = Settings & { scoreWeightTrend: number };
 
 function normalizeDayRecord(day: DayRecord): DayRecord {
   return {
@@ -39,10 +29,14 @@ function normalizeDayRecord(day: DayRecord): DayRecord {
   };
 }
 
+/**
+ * Stable public frontend API. Transport (Tauri vs HTTP) is chosen by the
+ * selected backend; this module owns frontend-specific normalization so pages
+ * and hooks keep importing `api` unchanged.
+ */
 export const api = {
   getSettings: async (): Promise<Settings> => {
-    const { scoreWeightTrend: _, ...settings } =
-      await invoke<SettingsRow>("get_settings");
+    const { scoreWeightTrend: _, ...settings } = await backend.getSettings();
     const merged: Settings = {
       ...settings,
       calorieWarningBelow:
@@ -67,112 +61,96 @@ export const api = {
       dailyTeethBrushingsGoal: settings.dailyTeethBrushingsGoal ?? 2,
       scoreWeightTeeth:
         settings.scoreWeightTeeth ?? DEFAULT_SCORE_WEIGHTS.scoreWeightTeeth,
+      aiEnabled: settings.aiEnabled ?? settings.mealEstimateEnabled ?? false,
+      aiApiKey: settings.aiApiKey ?? settings.mealEstimateApiKey ?? null,
+      aiModel: normalizeGeminiModel(
+        settings.aiModel ?? settings.mealEstimateModel ?? "gemini-2.5-flash"
+      ),
       mealEstimateEnabled: settings.mealEstimateEnabled ?? false,
-      mealEstimateApiKey: settings.mealEstimateApiKey ?? null,
-      mealEstimateModel: normalizeGeminiModel(settings.mealEstimateModel),
+      aiFeedbackEnabled: settings.aiFeedbackEnabled ?? false,
+      aiVerboseLogging: settings.aiVerboseLogging ?? false,
     };
     return merged;
   },
   updateSettings: (settings: Settings) =>
-    invoke<void>("update_settings", {
-      settings: {
-        ...settings,
-        scoreWeightTrend: 0,
-        targetWeightChangeUnit: parseWeightChangeRateUnit(
-          settings.targetWeightChangeUnit
-        ),
-      } satisfies SettingsRow,
-    }),
+    backend.updateSettings({
+      ...settings,
+      scoreWeightTrend: 0,
+      targetWeightChangeUnit: parseWeightChangeRateUnit(
+        settings.targetWeightChangeUnit
+      ),
+    } satisfies SettingsRow),
 
-  listFoods: (query?: string) => invoke<Food[]>("list_foods", { query }),
-  getFoodLastEatenDates: () =>
-    invoke<Record<number, string>>("get_food_last_eaten_dates"),
-  createFood: (food: Food) => invoke<Food>("create_food", { food }),
-  updateFood: (food: Food) => invoke<Food>("update_food", { food }),
-  deleteFood: (id: number) => invoke<void>("delete_food", { id }),
+  listFoods: (query?: string) => backend.listFoods(query),
+  getFoodLastEatenDates: () => backend.getFoodLastEatenDates(),
+  createFood: (food: Food) => backend.createFood(food),
+  updateFood: (food: Food) => backend.updateFood(food),
+  deleteFood: (id: number) => backend.deleteFood(id),
 
   listWorkoutTemplates: (query?: string) =>
-    invoke<WorkoutTemplate[]>("list_workout_templates", { query }),
+    backend.listWorkoutTemplates(query),
   createWorkoutTemplate: (template: WorkoutTemplate) =>
-    invoke<WorkoutTemplate>("create_workout_template", { template }),
+    backend.createWorkoutTemplate(template),
   updateWorkoutTemplate: (template: WorkoutTemplate) =>
-    invoke<WorkoutTemplate>("update_workout_template", { template }),
-  deleteWorkoutTemplate: (id: number) =>
-    invoke<void>("delete_workout_template", { id }),
+    backend.updateWorkoutTemplate(template),
+  deleteWorkoutTemplate: (id: number) => backend.deleteWorkoutTemplate(id),
 
-  listRoutines: (query?: string) =>
-    invoke<Routine[]>("list_routines", { query }),
+  listRoutines: (query?: string) => backend.listRoutines(query),
   createRoutine: (name: string, exerciseIds: number[]) =>
-    invoke<Routine>("create_routine", { name, exerciseIds }),
+    backend.createRoutine(name, exerciseIds),
   updateRoutine: (id: number, name: string, exerciseIds: number[]) =>
-    invoke<Routine>("update_routine", { id, name, exerciseIds }),
-  deleteRoutine: (id: number) => invoke<void>("delete_routine", { id }),
+    backend.updateRoutine(id, name, exerciseIds),
+  deleteRoutine: (id: number) => backend.deleteRoutine(id),
 
   getExerciseProgress: (exerciseId: number) =>
-    invoke<ExerciseProgress>("get_exercise_progress", { exerciseId }),
+    backend.getExerciseProgress(exerciseId),
   addExerciseLog: (exerciseId: number, input: ExerciseLogInput) =>
-    invoke<ExerciseProgress>("add_exercise_log", { exerciseId, input }),
-  deleteExerciseLog: (logId: number) =>
-    invoke<void>("delete_exercise_log", { logId }),
+    backend.addExerciseLog(exerciseId, input),
+  deleteExerciseLog: (logId: number) => backend.deleteExerciseLog(logId),
 
   getRoutineProgress: (routineId: number) =>
-    invoke<RoutineProgress>("get_routine_progress", { routineId }),
+    backend.getRoutineProgress(routineId),
   addRoutineLog: (
     routineId: number,
     dayDate: string,
     entries: RoutineLogExerciseInput[]
-  ) =>
-    invoke<RoutineProgress>("add_routine_log", {
-      routineId,
-      dayDate,
-      entries,
-    }),
-  deleteRoutineLog: (logId: number) =>
-    invoke<void>("delete_routine_log", { logId }),
+  ) => backend.addRoutineLog(routineId, dayDate, entries),
+  deleteRoutineLog: (logId: number) => backend.deleteRoutineLog(logId),
 
   getDay: async (date: string) =>
-    normalizeDayRecord(await invoke<DayRecord>("get_day", { date })),
+    normalizeDayRecord(await backend.getDay(date)),
   listDays: async (start: string, end: string) =>
-    (await invoke<DayRecord[]>("list_days", { start, end })).map(normalizeDayRecord),
+    (await backend.listDays(start, end)).map(normalizeDayRecord),
   upsertDay: async (day: DayInput) =>
-    normalizeDayRecord(await invoke<DayRecord>("upsert_day", { day })),
+    normalizeDayRecord(await backend.upsertDay(day)),
 
-  listFoodEntries: (date: string) =>
-    invoke<FoodEntry[]>("list_food_entries", { date }),
+  listFoodEntries: (date: string) => backend.listFoodEntries(date),
   addFoodEntry: (
     dayDate: string,
     foodId: number,
     quantity: number,
     unit: FoodUnit,
     calories: number
-  ) =>
-    invoke<FoodEntry>("add_food_entry", {
-      dayDate,
-      foodId,
-      quantity,
-      unit,
-      calories,
-    }),
+  ) => backend.addFoodEntry(dayDate, foodId, quantity, unit, calories),
   updateFoodEntry: (
     id: number,
     quantity: number,
     unit: FoodUnit,
     calories: number
-  ) =>
-    invoke<FoodEntry>("update_food_entry", { id, quantity, unit, calories }),
-  deleteFoodEntry: (id: number) => invoke<void>("delete_food_entry", { id }),
+  ) => backend.updateFoodEntry(id, quantity, unit, calories),
+  deleteFoodEntry: (id: number) => backend.deleteFoodEntry(id),
 
-  estimateMeal: (description: string) =>
-    invoke<MealEstimate>("estimate_meal", { description }),
+  estimateMeal: (description: string) => backend.estimateMeal(description),
   logEstimatedMeal: (dayDate: string, estimate: MealEstimate) =>
-    invoke<FoodEntry>("log_estimated_meal", { dayDate, estimate }),
+    backend.logEstimatedMeal(dayDate, estimate),
   listMealEstimateApiLogs: (limit?: number) =>
-    invoke<MealEstimateApiLog[]>("list_meal_estimate_api_logs", { limit }),
-  clearMealEstimateApiLogs: () =>
-    invoke<void>("clear_meal_estimate_api_logs"),
+    backend.listMealEstimateApiLogs(limit),
+  clearMealEstimateApiLogs: () => backend.clearMealEstimateApiLogs(),
 
-  listWorkouts: (date: string) =>
-    invoke<WorkoutEntry[]>("list_workouts", { date }),
+  generateProgressFeedback: (request: ProgressFeedbackRequest) =>
+    backend.generateProgressFeedback(request),
+
+  listWorkouts: (date: string) => backend.listWorkouts(date),
   addWorkout: (
     dayDate: string,
     workoutType: WorkoutEntry["workoutType"],
@@ -181,14 +159,14 @@ export const api = {
     calories: number | null,
     caloriesOverride: boolean
   ) =>
-    invoke<WorkoutEntry>("add_workout", {
+    backend.addWorkout(
       dayDate,
       workoutType,
       durationMin,
       intensity,
       calories,
-      caloriesOverride,
-    }),
+      caloriesOverride
+    ),
   updateWorkout: (
     id: number,
     workoutType: WorkoutEntry["workoutType"],
@@ -197,41 +175,36 @@ export const api = {
     calories: number | null,
     caloriesOverride: boolean
   ) =>
-    invoke<WorkoutEntry>("update_workout", {
+    backend.updateWorkout(
       id,
       workoutType,
       durationMin,
       intensity,
       calories,
-      caloriesOverride,
-    }),
-  deleteWorkout: (id: number) => invoke<void>("delete_workout", { id }),
+      caloriesOverride
+    ),
+  deleteWorkout: (id: number) => backend.deleteWorkout(id),
 
   getMetricsRange: (start: string, end: string) =>
-    invoke<MetricsPoint[]>("get_metrics_range", { start, end }),
-  getPeriodSummary: (days: number) =>
-    invoke<PeriodSummary>("get_period_summary", { days }),
-  getLatestWeight: (beforeDate: string) =>
-    invoke<number | null>("get_latest_weight", { beforeDate }),
-  exportBackup: () => invoke<BackupData>("export_backup"),
-  exportSyncSnapshot: () => invoke<SyncSnapshot>("export_sync_snapshot"),
-  importBackup: (backup: BackupData) =>
-    invoke<void>("import_backup", { backup }),
+    backend.getMetricsRange(start, end),
+  getPeriodSummary: (days: number) => backend.getPeriodSummary(days),
+  getLatestWeight: (beforeDate: string) => backend.getLatestWeight(beforeDate),
+  exportBackup: (): Promise<BackupData> => backend.exportBackup(),
+  exportSyncSnapshot: (): Promise<SyncSnapshot> => backend.exportSyncSnapshot(),
+  importBackup: (backup: BackupData) => backend.importBackup(backup),
   importSyncSnapshot: (snapshot: SyncSnapshot) =>
-    invoke<void>("import_sync_snapshot", { snapshot }),
-  getSyncState: () => invoke<SyncState>("get_sync_state"),
+    backend.importSyncSnapshot(snapshot),
+  getSyncState: (): Promise<SyncState> => backend.getSyncState(),
   saveGoogleAuth: (email: string, refreshToken: string) =>
-    invoke<void>("save_google_auth", { email, refreshToken }),
-  clearGoogleAuth: () => invoke<void>("clear_google_auth"),
-  getGoogleRefreshToken: () =>
-    invoke<string | null>("get_google_refresh_token"),
-  markSynced: (syncedAt: string) =>
-    invoke<void>("mark_synced", { syncedAt: syncedAt }),
-  syncPush: (accessToken: string) =>
-    invoke<SyncSnapshot>("sync_push", { accessToken }),
-  syncPull: (accessToken: string) =>
-    invoke<SyncPullResult>("sync_pull", { accessToken }),
-  readBackupFile: (path: string) => invoke<string>("read_backup_file", { path }),
+    backend.saveGoogleAuth(email, refreshToken),
+  clearGoogleAuth: () => backend.clearGoogleAuth(),
+  getGoogleRefreshToken: () => backend.getGoogleRefreshToken(),
+  markSynced: (syncedAt: string) => backend.markSynced(syncedAt),
+  syncPush: (accessToken: string): Promise<SyncSnapshot> =>
+    backend.syncPush(accessToken),
+  syncPull: (accessToken: string): Promise<SyncPullResult> =>
+    backend.syncPull(accessToken),
+  readBackupFile: (path: string) => backend.readBackupFile(path),
   writeBackupFile: (path: string, contents: string) =>
-    invoke<void>("write_backup_file", { path, contents }),
+    backend.writeBackupFile(path, contents),
 };

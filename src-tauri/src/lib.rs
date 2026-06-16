@@ -1,24 +1,26 @@
+mod app;
 mod backup;
 mod commands;
 mod day_totals;
 mod day_workouts;
 mod db;
 mod exercise_progress;
+mod gemini;
+pub mod http;
 mod meal_estimate;
+mod progress_feedback;
 mod seed_foods;
 mod sync;
 
 use db::{init_db, AppState};
 use tauri::Manager;
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
-        .plugin(tauri_plugin_dialog::init());
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    let builder = builder.plugin(tauri_plugin_opener::init());
-    let builder = builder.plugin(tauri_plugin_google_auth::init());
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_google_auth::init());
     builder
         .setup(|app| {
             let conn = init_db(app)?;
@@ -58,6 +60,7 @@ pub fn run() {
             commands::update_food_entry,
             commands::delete_food_entry,
             commands::estimate_meal,
+            commands::generate_progress_feedback,
             commands::log_estimated_meal,
             commands::list_meal_estimate_api_logs,
             commands::clear_meal_estimate_api_logs,

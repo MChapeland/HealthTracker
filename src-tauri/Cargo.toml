@@ -12,7 +12,13 @@ edition = "2021"
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "tauri_app_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+crate-type = ["cdylib", "rlib"]
+
+# Cloud web server binary. Reuses the shared service layer in `src/app` and the
+# HTTP layer in `src/http`. Build with: cargo build --release --bin health-tracker-server
+[[bin]]
+name = "health-tracker-server"
+path = "src/bin/server.rs"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -29,4 +35,16 @@ chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking"] }
 tauri-plugin-google-auth = "0.5.1"
+
+# --- Cloud web server (health-tracker-server binary) ---
+axum = "0.8"
+axum-extra = { version = "0.10", features = ["cookie", "cookie-signed"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["fs", "cors", "trace"] }
+subtle = "2"
+urlencoding = "2"
+rand = "0.8"
+sha2 = "0.10"
+base64 = "0.22"
 

@@ -540,6 +540,14 @@ fn estimate_cost_usd(model: &str, prompt_tokens: Option<i64>, output_tokens: Opt
     Some(input_cost + output_cost)
 }
 
+pub fn estimate_cost_usd_public(
+    model: &str,
+    prompt_tokens: Option<i64>,
+    output_tokens: Option<i64>,
+) -> Option<f64> {
+    estimate_cost_usd(model, prompt_tokens, output_tokens)
+}
+
 fn usage_from_payload(payload: &GeminiResponse) -> (Option<i64>, Option<i64>, Option<i64>) {
     let usage = payload.usage_metadata.as_ref();
     let prompt_tokens = usage.and_then(|u| u.prompt_token_count);

@@ -4,8 +4,9 @@ Personal desktop app for tracking weight loss, nutrition, physical activity, and
 
 ## Stack
 
-- **Tauri 2** — native Windows desktop shell and **Android** (same React + Rust codebase)
-- **React + TypeScript + Vite** — UI
+- **Tauri 2** — native Windows desktop shell (React + Rust codebase)
+- **Axum** — Rust HTTP server for the cloud-hosted web version (shares the same Rust service logic)
+- **React + TypeScript + Vite** — UI (shared between desktop and web)
 - **SQLite** — local database (`tracker.db` in app data directory)
 - **Tailwind CSS** — styling
 - **Recharts** — analytics graphs
@@ -76,29 +77,6 @@ npm run tauri build
 
 5. If the taskbar still shows the old icon, unpin and pin again (Windows caches icons).
 
-## Android
-
-The Gradle project is in [`src-tauri/gen/android`](src-tauri/gen/android). See [`android/README.md`](android/README.md) for prerequisites and install steps.
-
-```powershell
-. .\scripts\android-env.ps1
-npm run tauri android init   # first time only, if gen/android is missing
-npm run android:dev          # emulator/USB (Windows-friendly; see android/README.md)
-npm run android:build        # release APK
-```
-
-The default build produces:
-
-`src-tauri/gen/android/app/build/outputs/apk/arm64/debug/app-arm64-debug.apk`
-
-Install with:
-
-```powershell
-adb install -r path\to\your.apk
-```
-
-Android data is stored in app-private storage (separate from Windows). Use **Settings → Account & sync** (Google Sign-In) to sync across devices, or **Export / Import backup** for manual transfer.
-
 ## Google Sign-In and sync (optional)
 
 Cross-device sync uses your Google account and stores an app backup in Google Drive’s hidden **App Data** folder (free; no server to host).
@@ -106,13 +84,13 @@ Cross-device sync uses your Google account and stores an app backup in Google Dr
 1. Create a [Google Cloud project](https://console.cloud.google.com/) and enable the **Google Drive API**.
 2. Create OAuth clients:
    - **Desktop app** for Windows
-   - **Android** with package `com.matth.health-tracker` and your keystore SHA-1
+   - **Web application** for the cloud-hosted web version, with the redirect URI `https://<your-domain>/api/auth/google/callback`
 3. Copy [`.env.example`](.env.example) to `.env` and set:
    - `VITE_GOOGLE_CLIENT_ID`
-   - `VITE_GOOGLE_CLIENT_SECRET` (desktop builds)
+   - `VITE_GOOGLE_CLIENT_SECRET` (desktop builds only — never shipped to the web bundle)
 4. Rebuild the app. In **Settings → Account & sync**, sign in with Google and use **Sync now**.
 
-The app works fully offline without signing in.
+The desktop app works fully offline without signing in.
 
 ## Development
 
@@ -180,3 +158,78 @@ On Windows, the SQLite file is stored under:
 `%APPDATA%\com.matth.health-tracker\tracker.db`
 
 Use **Settings → Export backup** to save a JSON copy of your data.
+
+## Cloud web version
+
+The same React UI also runs in any browser, served by a small Axum (Rust) HTTP
+server that shares the exact same service/business logic as the desktop app.
+This lets you use Health Tracker from a phone or any PC.
+
+### Architecture
+
+- **Desktop**: React → Tauri `invoke` → shared Rust services → local SQLite.
+- **Web**: React → `fetch /api/*` → Axum server → the same shared Rust services
+  → SQLite on a persistent volume.
+
+The frontend picks the transport automatically at runtime (`isTauri()`), so no
+page code changes between desktop and web. The browser bundle never contains
+Tauri globals, AI keys, the Google client secret, or refresh tokens.
+
+> **Note:** the desktop and cloud databases are **separate**. They do **not**
+> auto-sync. Use **Google Drive sync** (Settings → Account & sync) or manual
+> **Export / Import backup** to move data between them.
+
+### Run the server locally
+
+```bash
+npm install
+npm run build            # produces dist/ (required: it is embedded + served)
+cd src-tauri
+# minimum required config:
+$env:APP_PASSWORD="dev-password"   # PowerShell;  export APP_PASSWORD=... on bash
+$env:SECURE_COOKIES="false"        # allow cookies over http://localhost
+cargo run --release --bin health-tracker-server
+```
+
+Then open `http://localhost:3000` and log in with `APP_PASSWORD`.
+
+For split dev (Vite on :1420 + server on :3000), set `VITE_API_BASE_URL` for the
+frontend and `WEB_CORS_ORIGINS=http://localhost:1420` for the server.
+
+### Environment variables (server)
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `APP_PASSWORD` | yes | Single-user login password. The server refuses to start without it. |
+| `SESSION_SECRET` | recommended | ≥64-byte random string used to sign session cookies. If unset, an ephemeral key is generated (sessions reset on restart). |
+| `DATABASE_PATH` | no | SQLite path. Defaults to `data/tracker.db`. In Docker it is `/data/tracker.db`. |
+| `PORT` | no | Listen port. Defaults to `3000` (Docker image sets `8080`). |
+| `STATIC_DIR` | no | Directory of the built SPA. Defaults to `dist`. |
+| `SECURE_COOKIES` | no | `true` (default) marks cookies `Secure`; set `false` only for local `http`. |
+| `WEB_BASE_URL` | for OAuth | Public HTTPS URL, used to build the Google OAuth redirect. |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | for Drive sync | Web OAuth client credentials (kept server-side). |
+| `GOOGLE_REDIRECT_URI` | no | Defaults to `<WEB_BASE_URL>/api/auth/google/callback`. |
+| `WEB_CORS_ORIGINS` | no | Comma-separated allowed origins; only needed for split dev. |
+
+### Deploy with Docker / Fly.io
+
+A multi-stage [`Dockerfile`](Dockerfile) builds the frontend and the server and
+produces a runtime image. Migrations run automatically on first boot.
+
+Using [Fly.io](https://fly.io) ([`fly.toml`](fly.toml) provided):
+
+```bash
+fly launch --no-deploy            # or edit the app name in fly.toml
+fly volumes create health_tracker_data --size 1
+fly secrets set APP_PASSWORD="a-strong-password"
+fly secrets set SESSION_SECRET="$(openssl rand -base64 48)"
+# optional, for Google Drive sync:
+fly secrets set GOOGLE_CLIENT_ID="..." GOOGLE_CLIENT_SECRET="..." \
+  WEB_BASE_URL="https://your-app.fly.dev"
+fly deploy
+```
+
+Fly provides HTTPS automatically. The SQLite database lives on the mounted
+volume at `/data`. For the web Google OAuth flow, register the redirect URI
+`https://your-app.fly.dev/api/auth/google/callback` as a **Web application**
+OAuth client in the Google Cloud Console.

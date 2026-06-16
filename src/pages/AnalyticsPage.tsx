@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { AiFeedbackDialog } from "../components/AiFeedbackDialog";
 import { DropdownSelect } from "../components/DropdownSelect";
 import {
   ANALYTICS_AVERAGE_ICON,
@@ -16,7 +17,7 @@ import {
 } from "../components/AnalyticsChartTooltip";
 import { createVerticalCalorieZoneBarShape } from "../components/VerticalCalorieZoneBarShape";
 import { SectionHeader } from "../components/SectionHeader";
-import { PageHeader } from "../components/PageHeader";
+import { PageHeader, pageHeaderActionButtonClass } from "../components/PageHeader";
 import { PageLayout } from "../components/PageLayout";
 import { useSettings } from "../hooks/useSettings";
 import {
@@ -326,6 +327,7 @@ export function AnalyticsPage() {
   );
   const [deficitMetric, setDeficitMetric] = useState<"kcal" | "kg">("kcal");
   const [chartToggles, setChartToggles] = useState(loadAnalyticsChartToggles);
+  const [aiFeedbackOpen, setAiFeedbackOpen] = useState(false);
 
   const updateChartToggle = <
     C extends keyof AnalyticsChartToggles,
@@ -580,6 +582,13 @@ export function AnalyticsPage() {
           title="Analytics"
           actions={
             <>
+              <button
+                type="button"
+                onClick={() => setAiFeedbackOpen(true)}
+                className={pageHeaderActionButtonClass}
+              >
+                Analyse
+              </button>
               <DropdownSelect
                 value={rangeSelection}
                 menuClassName="min-w-full"
@@ -1514,6 +1523,7 @@ export function AnalyticsPage() {
           </ComposedChart>
         </ResponsiveContainer>
       </section>
+      <AiFeedbackDialog open={aiFeedbackOpen} onClose={() => setAiFeedbackOpen(false)} />
     </PageLayout>
   );
 }

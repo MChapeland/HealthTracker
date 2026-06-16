@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { AiFeedbackDialog } from "../components/AiFeedbackDialog";
 import { CalorieZoneBar } from "../components/CalorieZoneBar";
 import { DailyScorePanelColumn } from "../components/DailyScorePanel";
 import { EnergyBalanceCard } from "../components/EnergyBalanceCard";
 import { FoodMacroSummary } from "../components/FoodMacroSummary";
-import { PageHeader } from "../components/PageHeader";
+import { PageHeader, pageHeaderActionButtonClass } from "../components/PageHeader";
 import { PageLayout } from "../components/PageLayout";
 import { PhysicalActivitySummary } from "../components/PhysicalActivitySummary";
 import { HydrationSummary } from "../components/HydrationSummary";
@@ -52,6 +53,7 @@ export function DashboardPage() {
   });
   const [weekOffset, setWeekOffset] = useState(0);
   const [loadedDays, setLoadedDays] = useState<DayRecord[]>([]);
+  const [aiFeedbackOpen, setAiFeedbackOpen] = useState(false);
 
   useEffect(() => {
     const t = todayString();
@@ -159,13 +161,22 @@ export function DashboardPage() {
           page="dashboard"
           title="Dashboard"
           actions={
-            <Link
-              to={`/day/${todayString()}`}
-              state={{ from: "dashboard" }}
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium hover:bg-accent-hover"
-            >
-              Log today
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setAiFeedbackOpen(true)}
+                className={pageHeaderActionButtonClass}
+              >
+                Analyse
+              </button>
+              <Link
+                to={`/day/${todayString()}`}
+                state={{ from: "dashboard" }}
+                className="rounded-lg bg-accent px-4 py-2 text-sm font-medium hover:bg-accent-hover"
+              >
+                Log today
+              </Link>
+            </div>
           }
         />
       }
@@ -292,6 +303,7 @@ export function DashboardPage() {
           dayWeight={weight}
         />
       </div>
+      <AiFeedbackDialog open={aiFeedbackOpen} onClose={() => setAiFeedbackOpen(false)} />
     </PageLayout>
   );
 }
